@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>VOID WALKER - OFFICIAL RELEASE v1.0</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; touch-action: none; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        #ui { position: absolute; top: 20px; width: 100%; text-align: center; color: #00ffcc; pointer-events: none; text-shadow: 2px 2px #000; font-size: 20px; z-index: 10; }
+        #battery-container { width: 150px; height: 10px; border: 1px solid #00ffcc; margin: 10px auto; display: none; position: relative; }
+        #battery-level { height: 100%; background: #00ffcc; width: 100%; transition: width 0.3s; }
+        #experimental-tag { position: absolute; top: 85px; width: 100%; text-align: center; color: rgba(255, 255, 255, 0.4); font-size: 14px; font-weight: bold; letter-spacing: 4px; display: none; pointer-events: none; z-index: 10; }
+        #msg { position: absolute; top: 50%; width: 100%; text-align: center; color: #ff3333; font-weight: bold; font-size: 24px; display: none; z-index: 11; transform: translateY(-50%); letter-spacing: 2px; }
+        #overlay, #death-screen, #experiment-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #fff; z-index: 100; text-align: center; background-size: cover; background-position: center; transition: opacity 0.3s ease; }
+        #overlay { background-image: url('https://images.unsplash.com/photo-1534067783941-51c9c23ecefd?auto=format&fit=crop&w=1000&q=80'); }
+        #death-screen { background-image: url('https://images.unsplash.com/photo-1506318137071-a8e063b4bcc0?auto=format&fit=crop&w=1000&q=80'); }
+        #experiment-screen { background: rgba(0,0,0,0.95); display: none; border: 2px solid #00ffcc; overflow-y: auto; padding: 20px; }
+        #jumpscare { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 200; display: none; justify-content: center; align-items: center; overflow: hidden; }
+        #jumpscare img { height: 120%; width: auto; filter: grayscale(1) contrast(2) brightness(0.8); }
+        h1.game-title { font-size: 3.5rem; color: #00ffcc; margin-bottom: 5px; letter-spacing: 8px; text-shadow: 0 0 15px #00ffcc; }
+        #leaderboard { margin-top: 25px; padding: 20px 40px; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); border: 1px solid rgba(0, 255, 204, 0.3); border-radius: 10px; color: #eee; }
+        button.action-btn { padding: 15px 40px; background: #00ffcc; color: #000; border: none; font-size: 1.2rem; cursor: pointer; font-weight: bold; margin-top: 15px; border-radius: 5px; width: 280px; }
+        .back-btn { position: absolute; top: 20px; left: 20px; padding: 10px 20px; background: transparent; border: 1px solid #00ffcc; color: #00ffcc; cursor: pointer; font-family: inherit; font-weight: bold; }
+        .exp-row { display: flex; align-items: center; justify-content: space-between; width: 340px; margin: 10px 0; padding: 10px; border-bottom: 1px solid #333; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #444; transition: .4s; border-radius: 30px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #00ffcc; }
+        input:checked + .slider:before { transform: translateX(24px); }
+        #menu-btn { position: absolute; top: 5px; right: 5px; width: 30px; height: 30px; background: #cccccc; border: 1px solid #999999; cursor: pointer; z-index: 150; display: none; opacity: 0.8; }
+        .game-controls { display: none; }
+        #joystick-container { position: absolute; bottom: 40px; left: 40px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border: 2px solid #00ffcc; border-radius: 50%; z-index: 50; }
+        #joystick-knob { width: 40px; height: 40px; background: #00ffcc; border-radius: 50%; position: absolute; left: 30px; top: 30px; }
+        #jump-btn { position: absolute; bottom: 40px; right: 40px; width: 80px; height: 80px; background: rgba(0, 255, 204, 0.2); border: 2px solid #00ffcc; border-radius: 50%; color: #00ffcc; font-weight: bold; display: flex; justify-content: center; align-items: center; user-select: none; z-index: 50; }
+    </style>
+</head>
+<body>
+    <div id="ui">DEPTH: <span id="depthVal">0</span>m<div id="battery-container"><div id="battery-level"></div></div></div>
+    <div id="experimental-tag">EXPERIMENTAL VERSION</div>
+    <div id="msg">LIGHT DROPPED...<br>RECOVER IT</div>
+    <button id="menu-btn" onclick="returnToMenu()"></button>
+    
+    <div id="overlay">
+        <h1 class="game-title">VOID WALKER</h1>
+        <button class="action-btn" onclick="startGame()">START MISSION</button>
+        <button class="action-btn" onclick="openExperiments()" style="background: #222; color: #00ffcc; border: 1px solid #00ffcc;">EXPERIMENTS</button>
+        <div id="leaderboard"><p>— TOP EXPLORERS —</p><div id="score-list"></div></div>
+    </div>
+
+    <div id="experiment-screen">
+        <button class="back-btn" onclick="closeExperiments()">< BACK</button>
+        <h1 style="color: #00ffcc; margin-bottom: 20px;">LABORATORY</h1>
+        <div class="exp-row"><span>VOID ENTITY</span><label class="switch"><input type="checkbox" id="entityToggle"><span class="slider"></span></label></div>
+        <div class="exp-row"><span>GRAVITY OVERRIDE</span><label class="switch"><input type="checkbox" id="flyToggle"><span class="slider"></span></label></div>
+        <div class="exp-row"><span>KINETIC IMPACT</span><label class="switch"><input type="checkbox" id="pushToggle"><span class="slider"></span></label></div>
+        <div class="exp-row"><span>ENERGY CRISIS</span><label class="switch"><input type="checkbox" id="batteryToggle"><span class="slider"></span></label></div>
+    </div>
+
+    <div id="death-screen" style="display:none">
+        <h1 style="color:#ff3333; letter-spacing: 10px;">VOIDED</h1>
+        <p id="finalDepth">Reached: 0m</p>
+        <button class="action-btn" id="retry-btn">RETRY MISSION</button>
+    </div>
+
+    <div id="jumpscare"><img src="https://images.unsplash.com/photo-1509248961158-e54f6934749c?q=80&w=1000&auto=format&fit=crop" id="jumpscare-img"></div>
+    <div id="controls-group" class="game-controls">
+        <div id="joystick-container"><div id="joystick-knob"></div></div>
+        <div id="jump-btn">JUMP</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, flashlight, skyLight, skySphere, starField;
+        let flashlightModel, isDropped = false, isPickedUp = false, entityMesh = null;
+        let isPlaying = false, animId, audioCtx = null;
+        let moveFwd = 0, turnSide = 0, angle = 0, vY = 0, isGrounded = true;
+        let floorSegments = [], obstacles = [];
+        let battery = 100, nextObstacleZ = -30;
+        
+        let expEntity = false, expFly = false, expPush = false, expBattery = false;
+
+        const loader = new THREE.TextureLoader();
+        const wallTex = loader.load('https://threejs.org/examples/textures/brick_diffuse.jpg');
+        const floorTex = loader.load('https://threejs.org/examples/textures/floors/FloorsCheckerboard_S_Diffuse.jpg');
+        const crateTex = loader.load('https://threejs.org/examples/textures/crate.gif');
+        const faceTex = loader.load('https://images.unsplash.com/photo-1509248961158-e54f6934749c?q=80&w=200&auto=format&fit=crop');
+
+        [wallTex, floorTex].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; });
+        floorTex.repeat.set(4, 15); wallTex.repeat.set(15, 2);
+
+        const SEG_LEN = 50, SEG_COUNT = 6, HALL_W = 12, P_HEIGHT = 1.6, P_RAD = 1.0;
+
+        function init() {
+            scene = new THREE.Scene(); 
+            scene.fog = new THREE.Fog(0x87ceeb, 20, 150);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 2000);
+            renderer = new THREE.WebGLRenderer({ antialias: true }); 
+            renderer.setSize(window.innerWidth, window.innerHeight); document.body.appendChild(renderer.domElement);
+            
+            const skyVertex = `varying vec3 vViewDir; void main() { vec4 worldPosition = modelMatrix * vec4(position, 1.0); vViewDir = normalize(worldPosition.xyz - cameraPosition); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+            const skyFragment = `uniform vec3 sunPos; uniform vec3 sunColor; uniform vec3 topColor; uniform vec3 bottomColor; uniform float nightFactor; varying vec3 vViewDir; void main() { float height = vViewDir.y; vec3 sky = mix(bottomColor, topColor, max(height + 0.3, 0.0)); sky *= (1.0 - nightFactor); float sunDot = max(dot(vViewDir, normalize(sunPos)), 0.0); vec3 sunDisk = sunColor * pow(sunDot, 600.0) * (1.0 - nightFactor); gl_FragColor = vec4(sky + sunDisk, 1.0); }`;
+            skySphere = new THREE.Mesh(new THREE.SphereGeometry(1000, 32, 32), new THREE.ShaderMaterial({ vertexShader: skyVertex, fragmentShader: skyFragment, uniforms: { sunPos: { value: new THREE.Vector3(0.5, 1, -1) }, sunColor: { value: new THREE.Color(0xffffcc) }, topColor: { value: new THREE.Color(0x1144ff) }, bottomColor: { value: new THREE.Color(0x88ccff) }, nightFactor: { value: 0 } }, side: THREE.BackSide })); scene.add(skySphere);
+            
+            const flGroup = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.4, 16), new THREE.MeshStandardMaterial({color: 0x222222, metalness: 0.8})); body.rotation.x = Math.PI / 2;
+            const head = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.08, 0.18, 16), new THREE.MeshStandardMaterial({color: 0x444444, metalness: 0.8})); head.rotation.x = Math.PI / 2; head.position.z = -0.25;
+            const lens = new THREE.Mesh(new THREE.CircleGeometry(0.11, 16), new THREE.MeshBasicMaterial({color: 0xffffff})); lens.position.z = -0.35;
+            flGroup.add(body, head, lens); flashlightModel = flGroup; flashlightModel.visible = false; scene.add(flashlightModel);
+            
+            flashlight = new THREE.SpotLight(0xffffff, 0, 150, Math.PI/3, 0.6, 1.2); scene.add(flashlight); scene.add(flashlight.target);
+            skyLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2); scene.add(skyLight);
+            
+            const starGeo = new THREE.BufferGeometry(); const starPoints = []; for(let i=0; i<4000; i++) starPoints.push(THREE.MathUtils.randFloatSpread(1800), THREE.MathUtils.randFloat(10, 900), THREE.MathUtils.randFloatSpread(1800));
+            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPoints, 3)); starField = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 0.7, transparent: true, opacity: 0})); scene.add(starField);
+            
+            setupControls(); updateLeaderboardUI(); window.addEventListener('resize', onWindowResize, false);
+            
+            document.getElementById('retry-btn').onclick = () => { document.getElementById('death-screen').style.display = 'none'; startGame(); };
+            document.getElementById('entityToggle').onchange = (e) => { expEntity = e.target.checked; checkExpTag(); };
+            document.getElementById('flyToggle').onchange = (e) => { expFly = e.target.checked; checkExpTag(); };
+            document.getElementById('pushToggle').onchange = (e) => { expPush = e.target.checked; checkExpTag(); };
+            document.getElementById('batteryToggle').onchange = (e) => { expBattery = e.target.checked; document.getElementById('battery-container').style.display = expBattery ? 'block' : 'none'; checkExpTag(); };
+        }
+
+        function initAudio() {
+            if(audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            const masterGain = audioCtx.createGain(); masterGain.gain.value = 0.4;
+            const lpf = audioCtx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 400;
+            masterGain.connect(lpf); lpf.connect(audioCtx.destination);
+
+            // Layer 1: Sub Drone
+            const sub = audioCtx.createOscillator(); sub.type = 'sine'; sub.frequency.value = 42;
+            const subGain = audioCtx.createGain(); subGain.gain.value = 0.5;
+            sub.connect(subGain); subGain.connect(masterGain); sub.start();
+
+            // Layer 2 & 3: Dissonant Ghost Drones
+            const createDrone = (freq, detune) => {
+                const osc = audioCtx.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = freq; osc.detune.value = detune;
+                const g = audioCtx.createGain(); g.gain.value = 0.05;
+                const lfo = audioCtx.createOscillator(); lfo.frequency.value = 0.1;
+                const lfoG = audioCtx.createGain(); lfoG.gain.value = 5;
+                lfo.connect(lfoG); lfoG.connect(osc.frequency);
+                osc.connect(g); g.connect(masterGain); osc.start(); lfo.start();
+            };
+            createDrone(55, 5); createDrone(55.4, -5);
+        }
+
+        function checkExpTag() { const any = expEntity || expFly || expPush || expBattery; document.getElementById('experimental-tag').style.display = any ? 'block' : 'none'; }
+
+        function spawnEntity(z) {
+            if(entityMesh) scene.remove(entityMesh);
+            entityMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2.5), new THREE.MeshBasicMaterial({map: faceTex, transparent: true, opacity: 0.8, color: 0xff0000}));
+            entityMesh.position.set((Math.random()-0.5)*8, 1.5, z - 30); scene.add(entityMesh);
+        }
+
+        function createSegment(z) {
+            const group = new THREE.Group(); 
+            const f = new THREE.Mesh(new THREE.PlaneGeometry(HALL_W, SEG_LEN), new THREE.MeshStandardMaterial({map: floorTex})); 
+            f.rotation.x = -Math.PI/2; f.position.set(0, 0, -SEG_LEN/2); group.add(f); 
+            const wL = new THREE.Mesh(new THREE.PlaneGeometry(SEG_LEN, 8), new THREE.MeshStandardMaterial({map: wallTex})); wL.position.set(-HALL_W/2, 4, -SEG_LEN/2); wL.rotation.y = Math.PI/2; group.add(wL);
+            const wR = new THREE.Mesh(new THREE.PlaneGeometry(SEG_LEN, 8), new THREE.MeshStandardMaterial({map: wallTex})); wR.position.set(HALL_W/2, 4, -SEG_LEN/2); wR.rotation.y = -Math.PI/2; group.add(wR);
+            group.position.z = z; scene.add(group); return group;
+        }
+
+        function spawnObstacle(z) {
+            let x = (Math.random()-0.5)*9;
+            let obj = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.2, 2.2), new THREE.MeshStandardMaterial({map: crateTex}));
+            obj.position.set(x, 1.1, z); scene.add(obj); obstacles.push({type:'block', x, z, r:1.1, h:2.2, mesh:[obj]});
+        }
+
+        function startGame() { initAudio(); document.getElementById('overlay').style.display = 'none'; document.getElementById('menu-btn').style.display = 'block'; document.getElementById('controls-group').style.display = 'block'; reset(); isPlaying = true; animate(); }
+
+        function reset() {
+            if (animId) cancelAnimationFrame(animId);
+            floorSegments.forEach(s => scene.remove(s)); obstacles.forEach(o => o.mesh.forEach(m => scene.remove(m)));
+            if(entityMesh) scene.remove(entityMesh); entityMesh = null;
+            floorSegments = []; obstacles = []; battery = 100;
+            let currentZ = 0; for(let i=0; i<SEG_COUNT; i++) { let s = createSegment(currentZ); floorSegments.push(s); currentZ -= SEG_LEN; }
+            angle = 0; vY = 0; nextObstacleZ = -40; isDropped = false; isPickedUp = false;
+            document.getElementById('msg').style.display = 'none'; flashlightModel.visible = false; camera.position.set(0, P_HEIGHT, 0);
+        }
+
+        function triggerJumpscare(depth) {
+            isPlaying = false;
+            document.getElementById('jumpscare').style.display = 'flex';
+            setTimeout(() => { document.getElementById('jumpscare').style.display = 'none'; die(depth); }, 800);
+        }
+
+        function animate() {
+            if(!isPlaying) return;
+            animId = requestAnimationFrame(animate);
+            let depth = Math.abs(camera.position.z);
+            let nf = ( (depth % 1000) < 450) ? 0 : ( (depth % 1000) < 500) ? ((depth % 1000)-450)/50 : ( (depth % 1000) < 950) ? 1 : 1-((depth % 1000)-950)/50;
+
+            skySphere.material.uniforms.sunPos.value.set(0.5, 0.8 - nf*2.0, -1);
+            skySphere.material.uniforms.nightFactor.value = nf;
+            scene.fog.color.setHex(nf > 0.6 ? 0x000000 : 0x87ceeb);
+            scene.fog.far = THREE.MathUtils.lerp(150, 45, nf);
+            skyLight.intensity = THREE.MathUtils.lerp(1.2, 0.05, nf); 
+            starField.material.opacity = nf; starField.position.copy(camera.position); skySphere.position.copy(camera.position);
+
+            if(expEntity && nf > 0.8 && !entityMesh) spawnEntity(camera.position.z);
+            if(entityMesh) {
+                entityMesh.lookAt(camera.position);
+                if(camera.position.distanceTo(entityMesh.position) < 5) triggerJumpscare(depth);
+            }
+
+            if(depth >= 450 && !isDropped && !isPickedUp) { isDropped = true; flashlightModel.visible = true; flashlightModel.position.set(camera.position.x, 0.1, camera.position.z - 12); document.getElementById('msg').style.display = 'block'; }
+            if(isDropped && camera.position.distanceTo(flashlightModel.position) < 2) { isPickedUp = true; isDropped = false; document.getElementById('msg').style.display = 'none'; }
+
+            if(isPickedUp) { 
+                if(expBattery) { battery -= 0.05; if(battery < 0) battery = 0; document.getElementById('battery-level').style.width = battery + "%"; }
+                flashlight.intensity = nf * 5 * (battery/100); 
+                flashlight.position.copy(camera.position); flashlight.target.position.set(camera.position.x - Math.sin(angle)*20, 1.2, camera.position.z - Math.cos(angle)*20);
+                flashlightModel.position.set(camera.position.x - Math.sin(angle)*0.25, camera.position.y - 0.5, camera.position.z - Math.cos(angle)*0.45);
+                flashlightModel.rotation.y = angle; flashlightModel.visible = true;
+            } else if(isDropped) { 
+                flashlight.intensity = 2; flashlight.position.copy(flashlightModel.position); flashlight.target.position.set(flashlightModel.position.x, 0.1, flashlightModel.position.z - 5); 
+            } else { flashlight.intensity = 0; flashlightModel.visible = false; }
+
+            if(floorSegments[0].position.z > camera.position.z + SEG_LEN) {
+                let old = floorSegments.shift(); scene.remove(old);
+                floorSegments.push(createSegment(floorSegments[floorSegments.length-1].position.z - SEG_LEN));
+            }
+            if(camera.position.z < nextObstacleZ + 100) { spawnObstacle(nextObstacleZ); nextObstacleZ -= 25 + Math.random() * 20; }
+
+            angle += turnSide; camera.rotation.y = angle; 
+            if(!expFly) { vY -= 0.012; camera.position.y += vY; }
+            
+            let nX = camera.position.x - Math.sin(angle) * moveFwd; let nZ = camera.position.z - Math.cos(angle) * moveFwd;
+            let groundY = expFly ? camera.position.y : P_HEIGHT, canMove = true;
+            obstacles.forEach(o => { 
+                let d = Math.sqrt((nX-o.x)**2 + (nZ-o.z)**2);
+                if(d < (P_RAD + o.r)) { 
+                    if(expPush) { o.mesh[0].position.x += (nX - o.x)*0.1; o.mesh[0].position.z += (nZ - o.z)*0.1; o.x = o.mesh[0].position.x; o.z = o.mesh[0].position.z; }
+                    else if(camera.position.y >= o.h + 0.5) groundY = o.h + P_HEIGHT; else canMove = false; 
+                }
+            });
+            if(!expFly && camera.position.y <= groundY) { camera.position.y = groundY; vY = 0; isGrounded = true; }
+            if(canMove) { camera.position.x = Math.max(-5.4, Math.min(5.4, nX)); camera.position.z = Math.max(nZ, floorSegments[floorSegments.length-1].position.z); }
+            document.getElementById('depthVal').innerText = Math.floor(depth);
+            renderer.render(scene, camera);
+        }
+
+        function die(depth) { isPlaying = false; document.getElementById('death-screen').style.display = 'flex'; document.getElementById('finalDepth').innerText = `Reached: ${Math.floor(depth)}m`; saveScore(depth); }
+        function saveScore(depth) { let scores = JSON.parse(localStorage.getItem('voidScores') || "[]"); scores.push(Math.floor(depth)); scores.sort((a,b)=>b-a); localStorage.setItem('voidScores', JSON.stringify(scores.slice(0,3))); }
+        function updateLeaderboardUI() { const list = document.getElementById('score-list'), scores = JSON.parse(localStorage.getItem('voidScores') || "[]"); list.innerHTML = scores.length ? "" : "<p>Awaiting Mission...</p>"; scores.forEach((s,i)=>list.innerHTML += `<div class="score-entry">${i+1}. ${s}m</div>`); }
+        function returnToMenu() { isPlaying = false; cancelAnimationFrame(animId); document.getElementById('death-screen').style.display = 'none'; document.getElementById('overlay').style.display = 'flex'; updateLeaderboardUI(); }
+        function setupControls() {
+            const cont = document.getElementById('joystick-container'), knob = document.getElementById('joystick-knob');
+            let sX, sY;
+            cont.addEventListener('touchstart', e => { sX = e.touches[0].clientX; sY = e.touches[0].clientY; }, {passive: false});
+            cont.addEventListener('touchmove', e => {
+                e.preventDefault(); let touch = e.touches[0];
+                let dx = touch.clientX - sX, dy = touch.clientY - sY; let d = Math.min(Math.sqrt(dx*dx+dy*dy), 35); let a = Math.atan2(dy, dx);
+                knob.style.transform = `translate(${Math.cos(a)*d}px, ${Math.sin(a)*d}px)`;
+                moveFwd = -Math.sin(a) * (d/35) * 0.28; turnSide = -Math.cos(a) * (d/35) * 0.045;
+            }, {passive: false});
+            cont.addEventListener('touchend', () => { knob.style.transform = ''; moveFwd = 0; turnSide = 0; });
+            document.getElementById('jump-btn').addEventListener('touchstart', (e) => { e.preventDefault(); if(isGrounded || expFly) { vY = 0.35; isGrounded = false; if(expFly) camera.position.y += 1; } }, {passive: false});
+        }
+        function openExperiments() { document.getElementById('overlay').style.display = 'none'; document.getElementById('experiment-screen').style.display = 'flex'; }
+        function closeExperiments() { document.getElementById('experiment-screen').style.display = 'none'; document.getElementById( 'overlay').style.display = 'flex'; }
+        function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+        init();
+    </script>
+</body>
+</html>
